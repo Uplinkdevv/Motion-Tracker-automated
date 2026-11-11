@@ -1,48 +1,158 @@
 # Motion Tracker Automated
 
-**Photogrammetry-based motion tracking with a focus on simplicity and precision.**
+**Automate video-to-camera tracking and sparse 3D reconstruction with FFmpeg and COLMAP.**
 
-Motion Tracker Automated is a project focused on making motion tracking more accessible through photogrammetry. Its goal is to simplify the workflow for estimating motion from visual data.
+Motion Tracker Automated is a Windows batch workflow that processes videos into extracted frames, estimated camera poses, and sparse 3D scene data. It connects FFmpeg frame extraction with COLMAP feature extraction, sequential matching, reconstruction, and text export.
 
-[Project status](#project-status) · [Getting started](#getting-started) · [Feedback](#feedback) · [License](#license)
+> **Repository status:** This README documents the existing local `batch_reconstruct.bat` implementation. The script and external tools are not currently included in this repository; cloning it alone does not provide a runnable workflow.
 
-## Overview
+## Features
 
-Photogrammetry uses information from multiple images to estimate spatial relationships. This project explores that approach for motion tracking, with an emphasis on:
+- **Batch processing:** processes files from a shared input folder, with a separate output folder for each video.
+- **Automatic frame extraction:** saves video frames as numbered JPEG images.
+- **Camera and scene reconstruction:** runs COLMAP to estimate camera poses and sparse 3D points.
+- **Text export:** converts sparse model `0` into COLMAP's TXT format.
+- **Completion checks:** skips completed scenes when the completion marker and required model files exist.
+- **Frame reuse:** reuses extracted JPEGs when a frame-completion marker is present.
+- **Failure reporting:** checks processing commands, reports failed videos, and continues with remaining jobs.
 
-- **Ease of use** — making the tracking workflow straightforward.
-- **Precision** — working toward reliable motion estimates.
-- **Automation** — reducing repetitive steps in the tracking process.
+## How it works
 
-These are project goals, rather than a list of verified capabilities.
+| Stage | Tool | Result |
+| --- | --- | --- |
+| 1. Extract frames | FFmpeg | Numbered JPEG images from the input video |
+| 2. Extract features | COLMAP `feature_extractor` | Image features stored in a scene database |
+| 3. Match frames | COLMAP `sequential_matcher` | Feature correspondences across nearby frames |
+| 4. Reconstruct | COLMAP `mapper` | Sparse models containing camera poses and 3D points |
+| 5. Export | COLMAP `model_converter` | Text representation of sparse model `0` |
 
-## Project status
+The script resolves paths relative to its own location, so the workflow uses the folder structure below rather than a fixed installation path.
 
-This repository currently contains the project README and license. Source code, installation instructions, usage examples, and performance benchmarks are not yet included in the default branch.
+## Requirements
 
-Implementation details and supported platforms will be documented alongside the source code.
+For the local workflow, you need:
 
-## Getting started
+- **Windows**, with Command Prompt support for `.bat` files.
+- **[FFmpeg](https://ffmpeg.org/download.html)**, provided as a Windows static build.
+- **[COLMAP](https://github.com/colmap/colmap/releases)**, with its Windows libraries and Qt plugins.
+- A COLMAP build that supports the command-line options listed below and GPU feature extraction.
+- Enough free storage for extracted frames, the database, and reconstruction outputs.
 
-You can clone the repository to follow its development:
+The script enables GPU feature extraction and CPU feature matching. It does not provide an automatic CPU fallback for feature extraction.
 
-```bash
-git clone https://github.com/Uplinkdevv/Motion-Tracker-automated.git
-cd Motion-Tracker-automated
+### Folder structure
+
+Keep these folders together:
+
+```text
+Motion-Tracker-automated/
+├── 01 COLMAP/
+│   ├── colmap.exe          # Alternatively: bin/colmap.exe
+│   ├── plugins/
+│   │   └── platforms/
+│   │       └── qwindows.dll
+│   └── ...                # Other COLMAP distribution files
+├── 02 VIDEOS/
+│   └── your-video.mp4
+├── 03 FFMPEG/
+│   └── ffmpeg.exe          # Alternatively: bin/ffmpeg.exe
+├── 04 SCENES/
+└── 05 SCRIPT/
+    └── batch_reconstruct.bat
 ```
 
-The current repository does not include a runnable application. Setup and usage instructions will be added when the implementation is available.
+Keep the COLMAP distribution's supporting libraries and plugin folders intact. The script checks for `plugins/platforms/qwindows.dll` before processing.
 
-## Feedback
+## Usage
 
-Ideas, questions, and suggestions are welcome through [GitHub Issues](https://github.com/Uplinkdevv/Motion-Tracker-automated/issues).
+These steps apply when you already have the batch script and the required tools:
 
-When sharing feedback, describe your intended workflow, the result you want to achieve, and any relevant examples.
+1. Arrange the folders as shown above.
+2. Put your input videos in `02 VIDEOS`.
+3. Double-click `05 SCRIPT/batch_reconstruct.bat`, or run it from Command Prompt:
+   ```bat
+   "05 SCRIPT\batch_reconstruct.bat"
+   ```
+4. Follow the per-video progress and error messages in the console.
+5. Open `04 SCENES/<video-name>/` to inspect the generated files.
+
+Use distinct video filenames **before the extension**: `clip.mp4` and `clip.mov` both map to the same `clip` output folder. Keep unrelated files out of the input folder, because the script does not filter files by video extension.
+
+## Output files
+
+A successful scene typically contains:
+
+```text
+04 SCENES/<video-name>/
+├── images/
+│   ├── frame_000001.jpg
+│   └── ...
+├── database.db
+├── sparse/
+│   ├── 0/
+│   │   ├── cameras.bin
+│   │   ├── images.bin
+│   │   └── points3D.bin
+│   ├── cameras.txt
+│   ├── images.txt
+│   └── points3D.txt
+├── frames.complete
+└── reconstruction.complete
+```
+
+- **Camera data** describes reconstructed camera parameters and registered image poses.
+- **Point data** describes the sparse 3D scene.
+- **Completion markers** help the script decide what to reuse or skip on later runs.
+
+COLMAP may create multiple numbered models. The script exports model `0`; it does not compare models or automatically select the largest reconstruction.
+
+## Default processing settings
+
+| Setting | Current value |
+| --- | --- |
+| Frame sampling | Every frame; no explicit downsampling |
+| JPEG quality | FFmpeg `-qscale:v 2` |
+| Camera handling | `ImageReader.single_camera 1` |
+| Feature extraction | GPU enabled |
+| Maximum extraction image size | `4096` |
+| Feature matching | CPU |
+| Sequential matching overlap | `15` |
+| Mapper threads | Windows `NUMBER_OF_PROCESSORS` value |
+| Export format | COLMAP TXT |
+
+These settings are embedded in the batch file; the workflow has no settings interface.
+
+## Reruns and recovery
+
+A scene is skipped only when `reconstruction.complete`, `sparse/0/images.bin`, and `sparse/images.txt` all exist.
+
+If a scene is incomplete, processing is attempted again. Frame extraction is skipped when `frames.complete` and JPEG frames exist; later COLMAP stages are invoked again using the scene's existing paths. This is partial reuse, not a full checkpoint system.
+
+The script does not detect changed input videos. To process revised footage independently, use a new, unique base filename.
+
+## Troubleshooting
+
+| Problem | What to check |
+| --- | --- |
+| FFmpeg or COLMAP cannot be found | Place the executable in its tool folder or that folder's `bin` subfolder. |
+| Missing Windows Qt plugin | Restore the full COLMAP distribution, including `plugins/platforms/qwindows.dll`. |
+| Feature extraction fails | Check GPU availability and whether your COLMAP build supports the configured options. |
+| No sparse model is produced | Inspect COLMAP's console output and try footage with clearer detail and overlapping views. |
+| Long processing time or high disk use | Every frame is extracted; begin with a short clip. |
+| A scene is unexpectedly skipped | Check whether completion markers and existing model files belong to an earlier input with the same base filename. |
+
+## Scope and limitations
+
+This workflow reconstructs camera motion and sparse scene geometry from video. It does not implement real-time object tracking, dense reconstruction, mesh generation, or a rendered scene viewer.
+
+Results depend on the input footage and successful COLMAP reconstruction. The documentation is based on inspection of the batch script, not a new runtime test or accuracy benchmark.
+
+## Credits
+
+The batch script credits **[Polyfjord](https://youtube.com/polyfjord)** as its original author.
+
+The workflow uses **[COLMAP](https://github.com/colmap/colmap)** for reconstruction and **[FFmpeg](https://ffmpeg.org/)** for frame extraction. These external tools retain their own licenses.
 
 ## License
 
-This project uses **CC0 1.0 Universal**. See [LICENSE](LICENSE) for the full terms.
-
----
-
-Maintained by [Uplinkdevv](https://github.com/Uplinkdevv).
+This repository uses **CC0 1.0 Universal**. See [LICENSE](LICENSE) for the full terms.
