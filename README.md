@@ -1,2 +1,3 @@
 # Motion-Tracker-automated
-That's a motion photogrammetry-based motion tracker just made for easy and precise 
+That's a motion photogrammetry-based motion tracker just made for easy and precise motion tracking
+
